@@ -35,11 +35,65 @@ resources:
           - |
             {
               "Comment": "Exemplo de State Machine",
-              "StartAt": "MyState1",
+              "StartAt": "Parallel",
               "States": {
-                "MyState1": {
-                  "Type": "Task",
-                  "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:aws-node-http-api-project-dev-RunInsideStepFunction",
+                "Parallel": {
+                  "Type": "Parallel",
+                  "Branches": [
+                    {
+                      "StartAt": "MyState1",
+                      "States": {
+                        "MyState1": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:lambda:us-east-2:771664442442:function:aws-node-http-api-project-dev-RunInsideStepFunction",
+                          "ResultPath": "$.output1",
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "States.ALL"
+                              ],
+                              "IntervalSeconds": 1200,
+                              "MaxAttempts": 3,
+                              "BackoffRate": 2
+                            }
+                          ],
+                          "Next": "Wait"
+                        },
+                        "Wait": {
+                          "Type": "Wait",
+                          "Seconds": 5,
+                          "End": true
+                        }
+                      }
+                    },
+                    {
+                      "StartAt": "MyState1 (1)",
+                      "States": {
+                        "MyState1 (1)": {
+                          "Type": "Task",
+                          "Resource": "arn:aws:lambda:us-east-2:771664442442:function:aws-node-http-api-project-dev-RunInsideStepFunction",
+                          "ResultPath": "$.output2",
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "States.ALL"
+                              ],
+                              "IntervalSeconds": 1200,
+                              "MaxAttempts": 3,
+                              "BackoffRate": 2
+                            }
+                          ],
+                          "Next": "Wait (1)"
+                        },
+                        "Wait (1)": {
+                          "Type": "Wait",
+                          "Seconds": 60,
+                          "End": true
+                        }
+                      }
+                    }
+                  ],
+                  "ResultPath": "$.parallelResult",
                   "End": true
                 }
               }
