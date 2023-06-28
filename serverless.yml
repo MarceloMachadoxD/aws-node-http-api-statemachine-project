@@ -1,0 +1,82 @@
+service: aws-node-http-api-project
+frameworkVersion: "3"
+
+plugins:
+  - serverless-step-functions
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  region: us-east-2
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - states:StartExecution
+      Resource: !Ref StateMachinePOC
+  environment:
+    STATE_MACHINE_ARN: !Ref StateMachinePOC
+
+functions:
+  api:
+    handler: src/api/index.handler
+    events:
+      - httpApi:
+          path: /
+          method: post
+  RunInsideStepFunction:
+    handler: src/RunInsideStepFunction/index.handler
+
+resources:
+  Resources:
+    StateMachinePOC:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        DefinitionString: !Sub
+          - |
+            {
+              "Comment": "Exemplo de State Machine",
+              "StartAt": "MyState1",
+              "States": {
+                "MyState1": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:aws-node-http-api-project-dev-RunInsideStepFunction",
+                  "End": true
+                }
+              }
+            }
+          - {}
+        RoleArn: !GetAtt StateMachinePOCStepFunctionsStateMachineRole.Arn
+
+    StateMachinePOCStepFunctionsStateMachineRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: states.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: StateMachinePOCStepFunctionsPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource: "*"
+
+outputs:
+  StateMachinePOC:
+    Description: "ARN da State Machine"
+    Value: !Ref StateMachinePOC
+  ApiEndpoint:
+    Description: "Endpoint da API HTTP"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
